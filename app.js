@@ -29,7 +29,7 @@ app.use((req, res, next) => {
 
 app.get('/filemanager/list', (req, res) => {
   const path = req.query.path || '.';
-  console.log("run here");
+  console.log("run here", path);
   fs.readdir(path, (err, files) => {
     if (err) {
       return apiError(res)('Cannot read that folder', err);
@@ -64,10 +64,15 @@ app.get('/filemanager/list', (req, res) => {
   });
 });
 
+app.post('/filemanager/file/open', (req, res) => {
+
+})
 
 app.post('/filemanager/dir/create', (req, res) => {
-  const fullPath = `${req.body.path}/${req.body.directory}`;
 
+  // console.log("zzzzzzzzzzz", req.body.filenames)
+  const fullPath = `.${req.body.path}${req.body.directory}`;
+  console.log("check folder", fullPath);
   if (fs.existsSync(fullPath)) {
     return apiError(res)('The folder already exist');
   }
@@ -78,6 +83,21 @@ app.post('/filemanager/dir/create', (req, res) => {
     return apiError(res)('Unknown error creating folder', err);
   }
 });
+
+app.post('/filemanager/file/create', (req, res) => {
+  const fullPath = `.${req.body.path}${req.body.filename}`;
+  console.log("check file", fullPath);
+  if (fs.existsSync(fullPath)) {
+    return apiError(res)('The file already exist');
+  }
+  try {
+    const result = fs.unlink(fullPath);
+    return apiResponse(res)(result);
+  } catch (err) {
+    return apiError(res)('Unknown error creating file', err);
+  }
+});
+
 
 
 app.get('/filemanager/file/content', (req, res) =>
@@ -186,6 +206,7 @@ app.post('/filemanager/items/remove', (req, res) => {
     path,
     filenames,
   } = req.body;
+  console.log("", path, filenames);
   const promises = (filenames || []).map((f) => {
     const fullPath = `${path}/${f}`;
     return new Promise((resolve, reject) => {
