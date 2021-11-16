@@ -29,7 +29,7 @@ app.use((req, res, next) => {
 
 app.get('/filemanager/list', (req, res) => {
   const path = req.query.path || '.';
-
+  console.log("run here");
   fs.readdir(path, (err, files) => {
     if (err) {
       return apiError(res)('Cannot read that folder', err);
