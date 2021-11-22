@@ -29,7 +29,8 @@ app.use((req, res, next) => {
 
 app.get('/filemanager/list', (req, res) => {
   const path = req.query.path || '.';
-  console.log("run here", path);
+  console.log("check query", req.query)
+  //console.log("run here", path);
   fs.readdir(path, (err, files) => {
     if (err) {
       return apiError(res)('Cannot read that folder', err);
@@ -64,6 +65,45 @@ app.get('/filemanager/list', (req, res) => {
   });
 });
 
+app.get('/filenameger/readdir', (req, res) => {
+  const path = req.query.path || '.';
+  console.log("check aa", path);
+  const read = '.' + path
+  fs.readdir(path, (err, files) => {
+    if (err) {
+      return apiError(res)('Cannot read that folder', err);
+    }
+
+    const items = (files || []).map((f) => {
+      const fpath = `${path}/${f}`;
+      let type = 'file';
+      let size = 0;
+      let createdAt = null;
+      let updatedAt = null;
+      try {
+        const stat = fs.statSync(fpath);
+        type = stat.isDirectory() ? 'dir' : type;
+        size = stat.size || size;
+        createdAt = stat.birthtimeMs;
+        updatedAt = stat.mtimeMs;
+      } catch (e) {
+        return null;
+      }
+      return {
+        name: f,
+        path: fpath,
+        type,
+        size,
+        createdAt,
+        updatedAt,
+      };
+    }).filter(Boolean);
+
+    return apiResponse(res)(items);
+  });
+});
+
+
 app.post('/filemanager/file/open', (req, res) => {
 
 })
@@ -91,7 +131,11 @@ app.post('/filemanager/file/create', (req, res) => {
     return apiError(res)('The file already exist');
   }
   try {
-    const result = fs.unlink(fullPath);
+    var result = fs.writeFile(fullPath, "CONTENT", "utf8", (error, data) => {
+      console.log("Write complete");
+      console.log(error);
+      console.log(data);
+    });
     return apiResponse(res)(result);
   } catch (err) {
     return apiError(res)('Unknown error creating file', err);
@@ -132,40 +176,41 @@ app.post('/filemanager/items/copy', (req, res) => {
     .catch(err => apiError(res)('An error ocurred copying files', err));
 });
 
-app.post('/filemanager/items/move', (req, res) => {
-  const {
-    path,
-    filenames,
-    destination,
-  } = req.body;
+// app.post('/filemanager/items/move', (req, res) => {
+//   const {
+//     path,
+//     filenames,
+//     destination,
+//   } = req.body;
 
-  const promises = (filenames || []).map(f =>
-    new Promise((resolve, reject) => {
-      const oldPath = `${path}/${f}`;
-      const newPath = `${destination}/${f}`;
-      fs.rename(oldPath, newPath, (err) => {
-        const response = {
-          success: !err,
-          error: err,
-          oldPath,
-          newPath,
-          filename: f,
-        };
-        return err ? reject(response) : resolve(response);
-      });
-    }));
+//   const promises = (filenames || []).map(f =>
+//     new Promise((resolve, reject) => {
+//       const oldPath = `${path}/${f}`;
+//       const newPath = `${destination}/${f}`;
+//       fs.rename(oldPath, newPath, (err) => {
+//         const response = {
+//           success: !err,
+//           error: err,
+//           oldPath,
+//           newPath,
+//           filename: f,
+//         };
+//         return err ? reject(response) : resolve(response);
+//       });
+//     }));
 
-  Promise.all(promises)
-    .then(values => apiResponse(res)(values))
-    .catch(err => apiError(res)('An error ocurred moving files', err));
-});
+//   Promise.all(promises)
+//     .then(values => apiResponse(res)(values))
+//     .catch(err => apiError(res)('An error ocurred moving files', err));
+// });
 
 app.post('/filemanager/item/move', (req, res) => {
   const {
     path,
     destination,
   } = req.body;
-
+  const fullPath = `.${path}${filenames}`;
+  console.log("", fullPath)
   const promise = new Promise((resolve, reject) =>
     fs.rename(path, destination, (err) => {
       const response = {
@@ -206,26 +251,42 @@ app.post('/filemanager/items/remove', (req, res) => {
     path,
     filenames,
   } = req.body;
-  console.log("", path, filenames);
-  const promises = (filenames || []).map((f) => {
-    const fullPath = `${path}/${f}`;
-    return new Promise((resolve, reject) => {
-      fs.unlink(fullPath, (err) => {
-        const response = {
-          success: !err,
-          error: err,
-          path,
-          filename: f,
-          fullPath,
-        };
-        return err ? reject(response) : resolve(response);
-      });
-    });
-  });
+  console.log("path file name", path, filenames);
+  // // const promises = (filenames || []).map((f) => {
+  const fullPath = `.${path}${filenames}`;
+  //   console.log("full path", fullPath);
+  //   return new Promise((resolve, reject) => {
+  //     fs.unlink(fullPath, (err) => {
+  //       const response = {
+  //         success: !err,
+  //         error: err,
+  //         path,
+  //         filename: f,
+  //         fullPath,
+  //       };
+  //       return err ? reject(response) : resolve(response);
+  //     });
+  //   });
+  // });
 
-  Promise.all(promises)
+  // Promise.all(promises)
+  //   .then(values => apiResponse(res)(values))
+  //   .catch(err => apiError(res)('An error ocurred deleting file', err));
+
+  const promise = new Promise((resolve, reject) =>
+    fs.unlink(fullPath, (err) => {
+      const response = {
+        success: !err,
+        error: err,
+        path,
+        filename: filenames,
+        fullPath,
+      };
+      return err ? reject(response) : resolve(response);
+    }));
+  promise
     .then(values => apiResponse(res)(values))
-    .catch(err => apiError(res)('An error ocurred deleting file', err));
+    .catch(err => apiError(res)('An error ocurred renaming file', err));
 });
 
 app.listen(8000);
